@@ -1,0 +1,6 @@
+*.mp4
+*.pyc
+*.a
+*.so
+*.o
+*.weights
