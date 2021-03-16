@@ -5,3 +5,4 @@
 *.o
 *.weights
 mars-small128*
+*.log

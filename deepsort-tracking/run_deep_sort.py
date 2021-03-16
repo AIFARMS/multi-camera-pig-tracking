@@ -22,8 +22,8 @@ Main file to run DeepSORT implementation with given tracker
 ## Suppress Deprecated Warnings
 import sys
 if not sys.warnoptions:
-	import warnings
-	warnings.simplefilter("ignore")
+    import warnings
+    warnings.simplefilter("ignore")
 
 parser = argparse.ArgumentParser(description = "Detect, Track and Count")
 parser.add_argument('--stream_source', '-s', default=0, help="Source video stream. Default stream is the webcam")
@@ -56,29 +56,44 @@ out = cv2.VideoWriter('%s-output.mp4'%filename, fourcc, video_fps, (w, h))
 
 total_frames = 0
 total_fps = 0
+
+cmap = plt.get_cmap('tab20b')
+colors = [cmap(i)[:3] for i in np.linspace(0, 1, 20)]
+
 ## Read frames from stream
 while(True):
-	start_time = time.time()
-	ret, frame = cap.read()
-	
-	if not ret: 
-		break
-
-	## Tracker consumes a frame and spits out an annotated_frame
+    start_time = time.time()
+    ret, frame = cap.read()
     
-	annotated_frame = deep_sort_tracker.consume(frame)
-	fps = round(1/(time.time()-start_time), 1)
-	total_fps += fps
-	total_frames += 1
-	
-	cv2.putText(annotated_frame, str(fps), (0, 20), cv2.FONT_HERSHEY_SIMPLEX, .8, (255, 255, 255), 2)
-	## Show the frame
-	cv2.imshow("Detect, Track and Count", annotated_frame)
-	print("FPS: " + str(fps))
-	## Save the annotated frame
-	out.write(annotated_frame)
-	if cv2.waitKey(1) & 0xFF == ord('q'):
-		break
+    if not ret: 
+        break
+
+    ## Tracker consumes a frame and spits out an annotated_frame
+    
+    tracks = deep_sort_tracker.consume(frame)
+
+    for track in tracks:
+        if not track.is_confirmed() or track.time_since_update > 1:
+            continue
+        bbox = track.to_tlbr()
+        class_name = track.get_class()
+        color = colors[int(track.track_id) % len(colors)]
+        color = [i * 255 for i in color]
+        cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+        cv2.rectangle(frame, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
+        cv2.putText(frame, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
+    fps = round(1/(time.time()-start_time), 1)
+    total_fps += fps
+    total_frames += 1
+    
+    cv2.putText(frame, str(fps), (0, 20), cv2.FONT_HERSHEY_SIMPLEX, .8, (255, 255, 255), 2)
+    ## Show the frame
+    cv2.imshow("Detect, Track and Count", frame)
+    print("FPS: " + str(fps))
+    ## Save the annotated frame
+    out.write(frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
 
 out.release()
