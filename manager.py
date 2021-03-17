@@ -6,8 +6,9 @@ import multiprocessing as multiproc
 # multiproc.set_start_method('fork') ## Context already set in camera.py
 
 from disjoint_set import DisjointSet
+from pigutils import annotate_frame
 
-DEBUG = True
+DEBUG = False
 
 class CameraManager(multiproc.context.Process):
 
@@ -39,6 +40,9 @@ class CameraManager(multiproc.context.Process):
             self.ceil_offset = 30
         else:
             self.ceil_offset = 0
+
+    def get_global_ids(self):
+        return self.queue.get()
 
     def ceiling_filter(self, ceil_tracks):
         pop_list = []
@@ -216,18 +220,6 @@ class CameraManager(multiproc.context.Process):
         else:
             return {pos: [int(x*1578/1443), int(y*1712/578)] for pos, [x, y] in poly_dict.items()}
 
-def annotate_frame(frame, pig_id, box, colors):
-    xmin, ymin, xmax, ymax = box
-    try:
-        color = colors[pig_id % len(colors)]
-    except:
-        color = colors[0]
-
-    color = [i * 255 for i in color]
-    cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 2)
-    cv2.rectangle(frame, (int(xmin), int(ymin-30)), (int(xmin)+(3+len(str(pig_id)))*17, int(ymin)), color, -1)
-    cv2.putText(frame, "Pig-" + str(pig_id),(int(xmin), int(ymin-10)),0, 0.75, (255,255,255),2)
-
 if __name__ == '__main__':
     import cv2
     import matplotlib.pyplot as plt
@@ -256,7 +248,8 @@ if __name__ == '__main__':
         angled.read()
 
     while True:
-        frame_id, global_position_dict = cmq.get()
+        frame_id, global_position_dict = camera_manager.get_global_ids()
+        print(frame_id, global_position_dict)
         ret1, angled_frame = angled.read()
         ret2, ceil_frame = ceil.read()
 
@@ -267,10 +260,10 @@ if __name__ == '__main__':
             angled_box, ceil_box = global_position_dict[pig_id]
 
             if angled_box is not None:
-                annotate_frame(angled_frame, pig_id, angled_box, colors)
+                annotate_frame(angled_frame, pig_id, angled_box, colors, activity=None)
                 
             if ceil_box is not None:
-                annotate_frame(ceil_frame, pig_id, ceil_box, colors)
+                annotate_frame(ceil_frame, pig_id, ceil_box, colors, activity=None)
 
         cv2.putText(angled_frame, "Frame ID: %d"%frame_id, (20, 100), 0, 3, (0,0,255), 10)
         stacked_frames = cv2.resize(np.hstack((ceil_frame, angled_frame)), (w, h))

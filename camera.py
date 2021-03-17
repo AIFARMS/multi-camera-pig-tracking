@@ -64,7 +64,7 @@ class Camera(multiproc.context.Process):
         for frame_id, tracks in tracks_dict.items():
             self.queue.put((frame_id, {"%s%d"%(self.track_prefix, t): bbox for t, bbox in tracks.items()}))
 
-        self.queue.put((-1, []))
+        self.queue.put((-1, {}))
 
 if __name__ == '__main__':
     
