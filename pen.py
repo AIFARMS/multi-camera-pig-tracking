@@ -1,3 +1,5 @@
+import os
+import pickle
 import numpy as np
 from shapely.geometry import Polygon, box as PolyBox
 import multiprocessing as multiproc
@@ -8,11 +10,71 @@ from pigutils import Pig, annotate_frame
 from camera import Camera
 from manager import CameraManager
 
+from intervaltree import IntervalTree
+
+class ActivityTracker:
+
+    def __init__(self, pen_name, base_timestamp):
+        self.interval_index = IntervalTree()
+        self.pen_name = pen_name
+        self.base_timestamp = base_timestamp
+
+        self.current_activities = {
+            'feeding': {}, 
+            'drinking': {}
+        }
+
+    def update_activity(self, frame_id, activity_dict):
+
+        for activity, ids in activity_dict.items():
+
+            ## Iterate through all the pigs in the activity dict and 
+            ## set the starting frame for the id if the activity is not tracked
+            for pig_id in ids:
+                if pig_id not in self.current_activities[activity]:
+                    self.current_activities[activity][pig_id] = frame_id
+
+            ## For those IDs which were not seen in the current activity dict, 
+            ## Complete and add their acticity in the interval_index
+            self.add_activity(set(self.current_activities[activity].keys())-ids, activity, frame_id)
+
+    def add_activity(self, completed_ids, activity, end_frame_id):
+
+        for pig_id in completed_ids:
+            start_frame_id = self.current_activities[activity].pop(pig_id, None)
+            self.interval_index[start_frame_id: end_frame_id] = (activity, pig_id)
+
+    def export_tracker(self, pigs, frame_id):
+
+        ## Firstly, add all current activities in the interval index
+        for activity in self.current_activities.copy():
+            self.add_activity(self.current_activities[activity].copy(), activity, frame_id)
+
+        base_dir = 'data/indices/'
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+
+        with open(os.path.join(base_dir, "Pen%s-%s.pkl" % (self.pen_name, self.base_timestamp)), "wb") as f:
+            pickle.dump(self.interval_index, f)
+            pickle.dump(pigs, f)
+
+    def import_tracker(self, filename):
+        with open(filename, "rb") as f:
+            self.interval_index = pickle.load(f)
+            self.pigs = pickle.load(f)
+
+    def query(self, q_activity, start_frame, end_frame):
+        activities = [a.data for a in self.interval_index.overlap(start_frame, end_frame)]
+
+        return [(activity, pig_id) for activity, pig_id in activities if activity == q_activity]
+
 class Pen(multiproc.context.Process):
 
-    def __init__(self, pen_name, camera_manager, vis_q=None):
+    def __init__(self, pen_name, camera_manager, base_timestamp="", vis_q=None):
         multiproc.context.Process.__init__(self)
 
+        self.activity_tracker = ActivityTracker(pen_name, base_timestamp)
+        
         feeding_roi = [(2771, 539), (3203, 1315), (2963, 1640), (2663, 815)]
         ## Create a drinking ROI
         self.activity_params = {
@@ -29,6 +91,13 @@ class Pen(multiproc.context.Process):
 
         self.vis_q = vis_q
 
+    @staticmethod
+    def get_activity(pig_id, activity_dict):
+        for activity, ids in activity_dict.items():
+            if pig_id in ids:
+                return activity
+        return None
+
     def run(self):
         while True:
             frame_id, global_ids = self.camera_manager.get_global_ids()
@@ -37,16 +106,19 @@ class Pen(multiproc.context.Process):
             self.update_pigs(frame_id, global_ids)
             activity_dict = self.detect_activities(frame_id)
 
+            self.activity_tracker.update_activity(frame_id, activity_dict)
+
             if self.vis_q is not None:
                 ## Augment Global IDs with activity detected
                 for pig_id, (angled_box, ceil_box) in global_ids.items():
-                    for activity, ids in activity_dict.items():
-                        global_ids[pig_id] = (angled_box, ceil_box, activity if pig_id in ids else None)
+                    global_ids[pig_id] = (angled_box, ceil_box, self.get_activity(pig_id, activity_dict))
 
                 self.vis_q.put((frame_id, global_ids, activity_dict))
 
         if self.vis_q is not None:
             self.vis_q.put((-1, None, None))
+
+        self.activity_tracker.export_tracker(self.pigs, frame_id)
 
     def update_pigs(self, frame_id, global_ids):
         global_ids_copy = deepcopy(global_ids)
@@ -150,6 +222,7 @@ if __name__ == '__main__':
         if frame_id == -1 or not ret1 or not ret2:
             break
         
+        print(frame_id, global_activity_dict, activity_dict)
         for pig_id in global_activity_dict:
             angled_box, ceil_box, activity = global_activity_dict[pig_id]
 
@@ -167,7 +240,6 @@ if __name__ == '__main__':
         cv2.putText(angled_frame, "Pigs at Feeder: %d" % len(activity_dict["feeding"]), (shiftx+50, shifty+80), 
                     cv2.FONT_HERSHEY_SIMPLEX, fontScale=2, thickness=5, color=(255, 255, 0))  
 
-        # cv2.putText(angled_frame, "Pigs at Feeder: %d"%len(activity_dict["feeding"]), (20, 100), 0, 2, (0,0,255), 10)
         stacked_frames = cv2.resize(np.hstack((ceil_frame, angled_frame)), (w, h))
         cv2.imshow("Multi Camera Tracking", stacked_frames)
         out.write(stacked_frames)
