@@ -2,7 +2,7 @@ import os
 import random
 
 images_dir = "obj"
-split = 0.9
+split = 0.8
 
 images = [x for x in os.listdir(images_dir) if "jpg" in x]
 num_images = len(images)

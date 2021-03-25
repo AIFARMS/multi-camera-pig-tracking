@@ -4,9 +4,9 @@ import cv2
 import json
 from tqdm import tqdm
 
-annotations_dir = "/home/kotnana2/digital_ag/data/merged.csv"
-base_dir = "/home/kotnana2/digital_ag/data"
-out_dir = "/home/kotnana2/digital_ag/darknet/data/obj"
+annotations_dir = 'merged.csv' #"/home/kotnana2/digital_ag/data/merged.csv"
+base_dir = '.' #"/home/kotnana2/digital_ag/data"
+out_dir = 'obj' #"/home/kotnana2/digital_ag/darknet/data/obj"
 
 annotations = pd.read_csv(annotations_dir)
 
