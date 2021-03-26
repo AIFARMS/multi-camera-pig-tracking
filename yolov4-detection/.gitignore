@@ -1,0 +1,7 @@
+*.weights
+log*
+yolov4.conv.137
+alexey/
+backup/
+_backup/
+backup-mixed/

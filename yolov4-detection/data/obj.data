@@ -1,5 +1,5 @@
 classes = 1
-train = data/train.txt
-valid = data/test.txt
+train = data/day-train.txt
+valid = data/day-test.txt
 names = data/obj.names
 backup = backup/
