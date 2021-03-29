@@ -1,4 +1,5 @@
 import os
+import json
 import pickle
 import numpy as np
 from shapely.geometry import Polygon, box as PolyBox
@@ -73,18 +74,25 @@ class Pen(multiproc.context.Process):
     def __init__(self, pen_name, camera_manager, base_timestamp="", vis_q=None):
         multiproc.context.Process.__init__(self)
 
+        assert pen_name in ["B", "C"]
+
         self.activity_tracker = ActivityTracker(pen_name, base_timestamp)
-        
-        feeding_roi = [(2771, 539), (3203, 1315), (2963, 1640), (2663, 815)]
-        ## Create a drinking ROI
+        with open(f"config/{pen_name}.json") as f:
+            roi_dict = json.load(f)
+
         self.activity_params = {
             'feeding' : {
-                'roi' : feeding_roi,
-                'poly_roi' : Polygon(feeding_roi),
+                'roi' : roi_dict["feeding_roi"],
+                'poly_roi' : Polygon(roi_dict["feeding_roi"]),
+                'overlap_threshold' : 0.1,
+                'orientation_threshold' : 1.1
+            },
+            'drinking' : {
+                'roi' : roi_dict["drinking_roi"],
+                'poly_roi' : Polygon(roi_dict["drinking_roi"]),
                 'overlap_threshold' : 0.1,
                 'orientation_threshold' : 1.1
             }
-            ## Add params for drinking
         }
         self.pigs = {}
         self.camera_manager = camera_manager
@@ -167,7 +175,7 @@ class Pen(multiproc.context.Process):
                     activity_dict[activity].add(pig_id)
                 
                 ## Skip drinking for now, remove once Okan completes the drinking part
-                break
+                # break
 
         return activity_dict
 
@@ -175,29 +183,29 @@ class Pen(multiproc.context.Process):
         """Draw the Region of Interest on the current frame
         """
         c = (102, 3, 252)
-        for i in range(1, len(self.activity_params[activity]['roi'])):
-            pt1 = self.activity_params[activity]['roi'][i-1]
-            pt2 = self.activity_params[activity]['roi'][i]
-            cv2.line(frame, pt1, pt2, c, 5)
-        cv2.line(frame, self.activity_params[activity]['roi'][0], self.activity_params[activity]['roi'][-1], c, 5)
+        for i in range(len(self.activity_params[activity]['roi'])):
+            pt1 = self.activity_params[activity]['roi'][i%4]
+            pt2 = self.activity_params[activity]['roi'][(i+1)%4]
+            cv2.line(frame, tuple(pt1), tuple(pt2), c, 5)
 
 if __name__ == '__main__':
     import cv2
     import matplotlib.pyplot as plt
 
+    PEN_NAME = "C"
     aq, cq = multiproc.Queue(), multiproc.Queue()
-    angled_camera = Camera(None, aq, track_prefix="a", simulation_file="data/detections/penc-day-output.pickle")
+    angled_camera = Camera(None, aq, track_prefix="a", simulation_file=f"data/detections/pen{PEN_NAME.lower()}-day-output.pickle")
     ceiling_camera = Camera(None, cq, track_prefix="c", simulation_file="data/detections/ceil-day-output.pickle")
     angled_camera.start(); ceiling_camera.start();
 
-    TOTAL_PIGS = 17
+    TOTAL_PIGS = 17 if PEN_NAME == "B" else 16
     cmq = multiproc.Queue()
-    camera_manager = CameraManager(angled_camera, ceiling_camera, cmq, total_pigs=TOTAL_PIGS, pen_name="C")
+    camera_manager = CameraManager(angled_camera, ceiling_camera, cmq, total_pigs=TOTAL_PIGS, pen_name=PEN_NAME)
     camera_manager.start()
 
     ## Queue for visualizing output
     vis_q = multiproc.Queue()
-    pen_c = Pen(pen_name="C", camera_manager=camera_manager, vis_q=vis_q)
+    pen_c = Pen(pen_name=PEN_NAME, camera_manager=camera_manager, vis_q=vis_q)
     pen_c.start()
 
     cmap = plt.get_cmap('tab20b')
@@ -205,7 +213,7 @@ if __name__ == '__main__':
 
     f = 3
     w, h = int(f*1280), int(f*360)
-    angled = cv2.VideoCapture("data/videos/penc-day.mp4")
+    angled = cv2.VideoCapture(f"data/videos/pen{PEN_NAME.lower()}-day.mp4")
     ceil = cv2.VideoCapture("data/videos/ceiling-day.mp4")
     out = cv2.VideoWriter('multi-tracking-activity.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (w, h))
 
@@ -233,7 +241,7 @@ if __name__ == '__main__':
                 annotate_frame(ceil_frame, pig_id, ceil_box, colors, activity)
 
         pen_c.draw_roi(angled_frame, "feeding")
-        ## pen_c.draw_roi(ceil_frame, "drinking") Uncomment once drinking params are done
+        pen_c.draw_roi(ceil_frame, "drinking") 
 
         shiftx, shifty = 150, 20
         cv2.rectangle(angled_frame, (shiftx, shifty), (shiftx+650, shifty+120), (0, 0, 0), -1)
