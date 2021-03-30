@@ -153,10 +153,10 @@ class Tracker:
             logging.warning("Empty Frame")
             time.sleep(0.1)
             count+=1
-			#if count < 3:
-			#	continue
-			#else:
-			#	break
+            #if count < 3:
+            #   continue
+            #else:
+            #   break
 
         t1 = time.time()
         boxes, scores, classes, = self.detector.get_localization(frame)
@@ -164,31 +164,32 @@ class Tracker:
         detections = [Detection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(boxes, scores, classes, features)]
 
 
-        
+        cmap = plt.get_cmap('tab20b')
+        colors = [cmap(i)[:3] for i in np.linspace(0, 1, 20)]
 
-        # run non-maxima suppresion
+            # run non-maxima suppresion
         boxs = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
         classes = np.array([d.class_name for d in detections])
         indices = preprocessing.non_max_suppression(boxs, classes, nms_max_overlap, scores)
         detections = [detections[i] for i in indices]        
 
-        # Call the tracker
+            # Call the tracker
         self.predict()
         self.update(detections)
+        bbox_dict = {}
 
-        return {track.track_id: track.to_tlbr() for track in self.tracks if track.is_confirmed() and track.time_since_update <= 1}
-        
-        # for track in self.tracks:
-        #     if not track.is_confirmed() or track.time_since_update > 1:
-        #         continue 
-        #     bbox = track.to_tlbr()
-        #     class_name = track.get_class()
-        #     color = colors[int(track.track_id) % len(colors)]
-        #     color = [i * 255 for i in color]
-        #     cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
-        #     cv2.rectangle(frame, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
-        #     cv2.putText(frame, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
+        for track in self.tracks:
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue 
+            bbox = track.to_tlbr()
+            class_name = track.get_class()
+            color = colors[int(track.track_id) % len(colors)]
+            color = [i * 255 for i in color]
+            cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+            cv2.rectangle(frame, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
+            cv2.putText(frame, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
 
-        # return frame
+            bbox_dict[track.track_id] = bbox
 
+        return frame, bbox_dict
