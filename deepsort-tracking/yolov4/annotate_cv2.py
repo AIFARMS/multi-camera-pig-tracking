@@ -13,8 +13,8 @@ class Detector(object):
 
 	def __init__(self, net_width, net_height):
 		self.mask = "./yolov4/masks/penb-maskfilter.png" #open mask
-		self.weights = "./yolov4/backup/yolo-tiny.weights"
-		self.config_file = "./yolov4/cfg/yolo-tiny-obj.cfg"
+		self.weights = "./yolov4/backup/yolo.weights"
+		self.config_file = "./yolov4/cfg/yolo-obj.cfg"
 		self.data_file = "./yolov4/data/obj.data"
 		self.thresh = .25
 
