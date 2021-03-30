@@ -100,9 +100,7 @@ def annotate_video(video_path):
         
         ## Save the annotated frame
         #out.write(annotated_frame)
-        #if cv2.waitKey(1) & 0xFF == ord('q'):
-        #    break
-        
+       
         pbar.update(1)
 
         for pig_id in bbox_dict:
@@ -128,7 +126,7 @@ def annotate_video(video_path):
         if total_frames == 100: break
     out.release()
     cap.release()
-    #cv2.destroyAllWindows()
+
     del det, deep_sort_tracker 
 
     for pig_id, frames in id_frames.items():
@@ -141,9 +139,8 @@ def annotate_video(video_path):
         json.dump(output_dict, f)
 
 if __name__ == '__main__':
-    
-    videos_to_annotate = "Videos to annotate"
-    for video_id in os.listdir(videos_to_annotate):
-        print(f"Video ID: {video_id}")
-        for video_name in os.listdir(os.path.join(videos_to_annotate, video_id)):
-            annotate_video(os.path.join(videos_to_annotate, video_id, video_name))
+    parser = argparse.ArgumentParser(description = "Detect, Track and Count")
+    parser.add_argument('--stream_source', '-s', required=True, help="Source video stream. Default stream is the webcam")
+    args = parser.parse_args()
+
+    annotate_video(args.stream_source)
