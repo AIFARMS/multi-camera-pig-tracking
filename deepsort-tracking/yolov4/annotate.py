@@ -13,8 +13,8 @@ class Detector(object):
 
     def __init__(self, net_width, net_height):
         self.mask = None
-        self.weights = "./yolov4/backup/yolo-tiny.weights"
-        self.config_file = "./yolov4/cfg/yolo-tiny-obj.cfg"
+        self.weights = "./yolov4/backup/yolo.weights"
+        self.config_file = "./yolov4/cfg/yolo-obj.cfg"
         self.data_file = "./yolov4/data/obj.data"
         self.thresh = .25
         self.network, self.class_names, self.class_colors = darknet.load_network(

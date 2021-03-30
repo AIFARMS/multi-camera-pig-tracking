@@ -4,7 +4,7 @@ import json
 import argparse
 from collections import defaultdict
 
-from yolov4.annotate_cv2 import Detector
+from yolov4.annotate import Detector
 from deep_sort.tracker import Tracker
 from tools import generate_detections as gdet
 from deep_sort import nn_matching
@@ -99,9 +99,9 @@ def annotate_video(video_path):
     	
         
         ## Save the annotated frame
-        out.write(annotated_frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        #out.write(annotated_frame)
+        #if cv2.waitKey(1) & 0xFF == ord('q'):
+        #    break
         
         pbar.update(1)
 
@@ -125,11 +125,11 @@ def annotate_video(video_path):
             })
 
         total_frames += 1
-
+        if total_frames == 100: break
     out.release()
     cap.release()
-    cv2.destroyAllWindows()
-    
+    #cv2.destroyAllWindows()
+    del det, deep_sort_tracker 
 
     for pig_id, frames in id_frames.items():
         output_dict["objects"].append({
