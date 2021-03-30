@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 import pickle
 import sys
-from imutils.video import FPS
+#from imutils.video import FPS
 
 class Detector(object):
 

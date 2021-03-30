@@ -1,6 +1,8 @@
+import os
 import cv2
 import json
 import argparse
+from collections import defaultdict
 
 from yolov4.annotate_cv2 import Detector
 from deep_sort.tracker import Tracker
@@ -61,9 +63,9 @@ def annotate_video(video_path):
     encoder = gdet.create_box_encoder(model_filename, batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
 
-
+    
     ## Initialize Object Detector and Tracker
-    cap = cv2.VideoCapture(vide_path)
+    cap = cv2.VideoCapture(video_path)
     w, h, video_fps = int(cap.get(3)), int(cap.get(4)), cap.get(5)
     det = Detector(w, h)
     deep_sort_tracker = Tracker(metric, det, encoder)
@@ -78,8 +80,9 @@ def annotate_video(video_path):
     mask_filter = cv2.imread(f"./yolov4/masks/{mask_map[view]}-maskfilter.png")
     if mask_filter.shape[:2] != (h, w):
     	mask_filter = cv2.resize(mask_filter, (w, h))
-
+    
     id_frames = defaultdict(list)
+    
     ## Read frames from stream
     while(True):
         ret, frame = cap.read()
@@ -126,6 +129,7 @@ def annotate_video(video_path):
     out.release()
     cap.release()
     cv2.destroyAllWindows()
+    
 
     for pig_id, frames in id_frames.items():
         output_dict["objects"].append({
