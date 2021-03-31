@@ -1,0 +1,59 @@
+Day Train:
+
+344
+detections_count = 6823, unique_truth_count = 5260  
+class_id = 0, name = pig, ap = 99.61%            (TP = 5225, FP = 206) 
+
+ for conf_thresh = 0.25, precision = 0.96, recall = 0.99, F1-score = 0.98 
+ for conf_thresh = 0.25, TP = 5225, FP = 206, FN = 35, average IoU = 82.74 % 
+
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+ mean average precision (mAP@0.50) = 0.996072, or 99.61 % 
+Total Detection Time: 25 Seconds
+
+Night Train:
+344
+ detections_count = 6816, unique_truth_count = 5229  
+class_id = 0, name = pig, ap = 99.72%            (TP = 5207, FP = 200) 
+
+ for conf_thresh = 0.25, precision = 0.96, recall = 1.00, F1-score = 0.98 
+ for conf_thresh = 0.25, TP = 5207, FP = 200, FN = 22, average IoU = 82.85 % 
+
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+ mean average precision (mAP@0.50) = 0.997218, or 99.72 % 
+
+Day Valid: 
+
+88
+detections_count = 1742, unique_truth_count = 1287  
+class_id = 0, name = pig, ap = 99.72%            (TP = 1280, FP = 66) 
+
+ for conf_thresh = 0.25, precision = 0.95, recall = 0.99, F1-score = 0.97 
+ for conf_thresh = 0.25, TP = 1280, FP = 66, FN = 7, average IoU = 80.89 % 
+
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+ mean average precision (mAP@0.50) = 0.997162, or 99.72 % 
+Total Detection Time: 6 Seconds
+
+Night Valid:
+88
+detections_count = 1747, unique_truth_count = 1318  
+class_id = 0, name = pig, ap = 99.29%            (TP = 1304, FP = 69) 
+
+ for conf_thresh = 0.25, precision = 0.95, recall = 0.99, F1-score = 0.97 
+ for conf_thresh = 0.25, TP = 1304, FP = 69, FN = 14, average IoU = 80.15 % 
+
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+ mean average precision (mAP@0.50) = 0.992912, or 99.29 % 
+Total Detection Time: 6 Seconds
+
+Overall Validation
+172
+ detections_count = 3489, unique_truth_count = 2605  
+class_id = 0, name = pig, ap = 99.50%            (TP = 2584, FP = 135) 
+
+ for conf_thresh = 0.25, precision = 0.95, recall = 0.99, F1-score = 0.97 
+ for conf_thresh = 0.25, TP = 2584, FP = 135, FN = 21, average IoU = 80.52 % 
+
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+ mean average precision (mAP@0.50) = 0.994983, or 99.50 % 
