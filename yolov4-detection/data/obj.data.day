@@ -1,0 +1,5 @@
+classes = 1
+train = data/train-day.txt
+valid = data/test-day.txt
+names = data/obj.names
+backup = backup-mixed/
