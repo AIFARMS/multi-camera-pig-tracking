@@ -38,6 +38,8 @@ def annotate_video(video_path):
     video_name = video_prefix.split('/')[-1]
     view = video_name.split('-')[-1]
     
+    if os.path.exists(f"{video_prefix}.json"):
+        return  
     output_dict = {
         "videoFileName": video_name,
         "fullVideoFilePath": video_path,
@@ -71,7 +73,7 @@ def annotate_video(video_path):
     deep_sort_tracker = Tracker(metric, det, encoder)
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(f"{video_prefix}-annotated.mp4", fourcc, video_fps, (w, h))
+    #out = cv2.VideoWriter(f"{video_prefix}-annotated.mp4", fourcc, video_fps, (w, h))
 
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     total_frames = 0
@@ -123,8 +125,8 @@ def annotate_video(video_path):
             })
 
         total_frames += 1
-        if total_frames == 100: break
-    out.release()
+        #if total_frames == 100: break
+    #out.release()
     cap.release()
 
     del det, deep_sort_tracker 

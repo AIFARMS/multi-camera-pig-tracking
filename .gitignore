@@ -5,9 +5,11 @@
 *.o
 *.weights
 mars-small128*
-*.log
+*.log*
 *.jpg
 
 yolov4-detection/data/Ceiling_Cam/
 yolov4-detection/data/Pen_B/
 yolov4-detection/data/Pen_C/
+*.mp4
+*.json
