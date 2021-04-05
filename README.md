@@ -1,5 +1,5 @@
 # Multi Camera Pig Tracking
-Official Implementation of **Continuous Multi-Camera Pig Tracking to Estimate Drinking and Feeding Behavior in Commercial Grow-Finish Pens**
+Official Implementation of **Tracking Grow-Finish Pigs Across Large Pens Using Multiple Cameras**
 
 <img src="data/pigs.gif" width="1000"></img>
 
