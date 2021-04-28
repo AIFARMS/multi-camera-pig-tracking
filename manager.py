@@ -8,7 +8,7 @@ import multiprocessing as multiproc
 from disjoint_set import DisjointSet
 from pigutils import annotate_frame
 
-DEBUG = False
+DEBUG = True
 
 class CameraManager(multiproc.context.Process):
 
@@ -81,6 +81,7 @@ class CameraManager(multiproc.context.Process):
         for fid in matching_fids:
             global_position_dict = self.match_tracks(self.ceiling_filter(self.local_buffer['ceiling'].pop(fid, None)), 
                                                     self.local_buffer['angled'].pop(fid, None))
+            print(fid, end=" ")
             self.queue.put((fid, global_position_dict))
             
     def match_tracks(self, ceil_tracks, angled_tracks):
@@ -100,7 +101,7 @@ class CameraManager(multiproc.context.Process):
         ## Assign Pigs in the Angled view a global ID first (Cropped version to remove weak detections)
         for angled_id in set(angled_tracks.keys()) - set(angled_to_ceil.keys()):
 
-            if self.pigs_seen < self.total_pigs:
+            if not angled_id in self.union_find:
                 self.union_find.union(angled_id, self.pigs_seen)
                 self.pigs_seen += 1
 
@@ -110,16 +111,39 @@ class CameraManager(multiproc.context.Process):
         ## Assign Pigs tracked by Homography a Global ID
         for ceil_id, angled_id in ceil_to_angled.items():
 
-            if self.pigs_seen < self.total_pigs:
-                ## Assign the pig found in the ceil_id and angled_id a unique Global identifier
-                self.union_find.union(ceil_id, self.pigs_seen)
-                self.union_find.union(angled_id, self.pigs_seen)
+            if angled_id in self.union_find:
 
-                self.pigs_seen += 1
+                if ceil_id in self.union_find:
+                    ## Both local IDs already exist and have a Global ID 
+                    ## BUT, this can lead to ID merges. Two or more pigs can get assigned to the same ID
+                    ## So let's assign a completely new global ID now (Can be improved)
+                    pass
+                    # common_id = min(self.union_find.find(ceil_id), self.union_find.find(angled_id))
+                    # self.union_find.union(ceil_id, common_id)
+                    # self.union_find.union(angled_id, common_id)
+
+                    if self.union_find.find(ceil_id) != self.union_find.find(angled_id):
+
+                        ## TODO: Create custom reset function
+                        self.union_find.reset(ceil_id, self.pigs_seen)
+                        self.union_find.reset(angled_id, self.pigs_seen)
+
+                        self.pigs_seen += 1
+
+                else:
+                    ## Assign the Global ID of angled_id to ceil_id
+                    self.union_find.union(ceil_id, self.union_find.find(angled_id))
 
             else:
-                ## Assign 
-                self.union_find.union(ceil_id, angled_id)
+                if ceil_id in self.union_find:
+                    ## Assign the Global ID of ceil_id to angled_id
+                    self.union_find.union(angled_id, self.union_find.find(ceil_id))
+                else:
+                    ## Assign a unique ID to both of them
+                    self.union_find.union(ceil_id, self.pigs_seen)
+                    self.union_find.union(angled_id, self.pigs_seen)
+
+                    self.pigs_seen += 1
 
             global_id = self.union_find.find(angled_id)
             global_position_dict[global_id] = (angled_tracks[angled_id], ceil_tracks[ceil_id])
@@ -127,7 +151,7 @@ class CameraManager(multiproc.context.Process):
         ## Assign Pigs in the Ceil view a global ID in the end (Cropped version??)
         for ceil_id in set(ceil_tracks.keys()) - set(ceil_to_angled.keys()):
 
-            if self.pigs_seen < self.total_pigs:
+            if not ceil_id in self.union_find:
                 self.union_find.union(ceil_id, self.pigs_seen)
                 self.pigs_seen += 1
 
@@ -136,6 +160,8 @@ class CameraManager(multiproc.context.Process):
 
         if DEBUG:
             print(list(self.union_find.itersets()))
+            print(global_position_dict)
+
         return global_position_dict
 
     def generate_global_id(self, angled_tracks, top_angled_to_angled):
@@ -245,7 +271,7 @@ if __name__ == '__main__':
 
     ## Initialize Camera Manager
     PEN_NAME = "B" if "B" in args.aj else "C"
-    TOTAL_PIGS = 1000#17 if PEN_NAME == "B" else 16
+    TOTAL_PIGS = 17 if PEN_NAME == "B" else 16
     cmq = multiproc.Queue()
     camera_manager = CameraManager(angled_camera, ceiling_camera, cmq, total_pigs=TOTAL_PIGS, pen_name=PEN_NAME, ceil_lag=args.cl)
     camera_manager.start()
@@ -265,7 +291,7 @@ if __name__ == '__main__':
 
     while True:
         frame_id, global_position_dict = camera_manager.get_global_ids()
-        print(frame_id, global_position_dict)
+
         ret1, angled_frame = angled_cap.read()
         ret2, ceil_frame = ceiling_cap.read()
 
