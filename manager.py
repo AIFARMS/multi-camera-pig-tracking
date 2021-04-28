@@ -12,7 +12,7 @@ DEBUG = False
 
 class CameraManager(multiproc.context.Process):
 
-    def __init__(self, angled_camera, ceil_camera, queue, total_pigs, pen_name):
+    def __init__(self, angled_camera, ceil_camera, queue, total_pigs, pen_name, ceil_lag):
         multiproc.context.Process.__init__(self)
 
         assert isinstance(angled_camera, Camera) and isinstance(ceil_camera, Camera)
@@ -21,14 +21,14 @@ class CameraManager(multiproc.context.Process):
         self.angled_camera = angled_camera
 
         self.local_buffer = {
-            'ceil': {}, 'angled': {}
+            'ceiling': {}, 'angled': {}
         }
 
         self.warp_dict = {}
-        with open("data/homography/matrices.pickle", "rb") as f:
+        with open(f"data/homography/matrices-{pen_name}.pickle", "rb") as f:
             self.H = pickle.load(f)
-            self.warp_dict['penc'] = pickle.load(f)
-            self.warp_dict['ceil'] = pickle.load(f)
+            self.warp_dict['angled'] = pickle.load(f)
+            self.warp_dict['ceiling'] = pickle.load(f)
 
         self.queue = queue
         self.union_find = DisjointSet()
@@ -36,10 +36,7 @@ class CameraManager(multiproc.context.Process):
         self.total_pigs = total_pigs
         self.pigs_seen = 0
         self.pen_name = pen_name
-        if self.pen_name == "C":
-            self.ceil_offset = 30
-        else:
-            self.ceil_offset = 0
+        self.ceil_lag = ceil_lag
 
     def get_global_ids(self):
         return self.queue.get()
@@ -65,7 +62,7 @@ class CameraManager(multiproc.context.Process):
             fid, tracks = self.ceil_camera.get_tracks()
             ceil_done = ceil_done and fid == -1
             if not ceil_done:
-                self.local_buffer['ceil'][fid+self.ceil_offset] = tracks
+                self.local_buffer['ceiling'][fid+self.ceil_lag] = tracks
 
             fid, tracks = self.angled_camera.get_tracks()
             angled_done = angled_done and fid == -1
@@ -78,11 +75,11 @@ class CameraManager(multiproc.context.Process):
 
     def match_tracks_from_buffer(self):
         matching_fids = []
-        for fid in set(self.local_buffer['angled']).intersection(set(self.local_buffer['ceil'])):
+        for fid in set(self.local_buffer['angled']).intersection(set(self.local_buffer['ceiling'])):
             matching_fids.append(fid)
         
         for fid in matching_fids:
-            global_position_dict = self.match_tracks(self.ceiling_filter(self.local_buffer['ceil'].pop(fid, None)), 
+            global_position_dict = self.match_tracks(self.ceiling_filter(self.local_buffer['ceiling'].pop(fid, None)), 
                                                     self.local_buffer['angled'].pop(fid, None))
             self.queue.put((fid, global_position_dict))
             
@@ -92,9 +89,9 @@ class CameraManager(multiproc.context.Process):
 
             ## Ceil tracking ID has not been added to the disjoin set
             # if self.union_find.find(ceil_id) == ceil_id:
-            ceil_to_topceil = self.transform_polygon(self.warp_dict['ceil'], self.rectangle_to_polygon(ceil_tracks[ceil_id]))
+            ceil_to_topceil = self.transform_polygon(self.warp_dict['ceiling'], self.rectangle_to_polygon(ceil_tracks[ceil_id]))
             top_ceil_to_top_angled = self.transform_polygon(np.linalg.inv(self.H), self.scale_polygon(ceil_to_topceil))
-            top_angled_to_angled[ceil_id] = self.transform_polygon(np.linalg.inv(self.warp_dict['penc']), top_ceil_to_top_angled)
+            top_angled_to_angled[ceil_id] = self.transform_polygon(np.linalg.inv(self.warp_dict['angled']), top_ceil_to_top_angled)
 
         angled_to_ceil, ceil_to_angled = self.generate_global_id(angled_tracks, top_angled_to_angled)
 
@@ -213,25 +210,44 @@ class CameraManager(multiproc.context.Process):
         }
         return poly_dict
 
-    @staticmethod
-    def scale_polygon(poly_dict, ceil_to_pen=True):
-        if ceil_to_pen:
-            return {pos: [int(x*1443/1578), int(y*578/1712)] for pos, [x, y] in poly_dict.items()}
-        else:
-            return {pos: [int(x*1578/1443), int(y*1712/578)] for pos, [x, y] in poly_dict.items()}
+    def scale_polygon(self, poly_dict, ceil_to_pen=True):
+
+        if self.pen_name == "C":
+            if ceil_to_pen:
+                return {pos: [int(x*1443/1578), int(y*578/1712)] for pos, [x, y] in poly_dict.items()}
+            else:
+                return {pos: [int(x*1578/1443), int(y*1712/578)] for pos, [x, y] in poly_dict.items()}
+
+        if self.pen_name == "B":
+            if ceil_to_pen:
+                return {pos: [int(x*1545/1352), int(y*645/1317)] for pos, [x, y] in poly_dict.items()}
+            else:
+                return {pos: [int(x*1352/1545), int(y*1317/645)] for pos, [x, y] in poly_dict.items()}
 
 if __name__ == '__main__':
     import cv2
     import matplotlib.pyplot as plt
+    import argparse
 
+    parser = argparse.ArgumentParser(description = "Annotate videos based on Multi-Camera annotations")
+    parser.add_argument('--av', required=True, help="Angled video stream")
+    parser.add_argument('--aj', required=True, help="Angled video json")
+    parser.add_argument('--cv', required=True, help="Ceiling video stream")
+    parser.add_argument('--cj', required=True, help="Ceiling video json")
+    parser.add_argument('--cl', required=True, type=int, help="Ceiling Lag (in terms of frames)")
+    args = parser.parse_args()
+
+    ## Initialize Camera
     aq, cq = multiproc.Queue(), multiproc.Queue()
-    angled_camera = Camera(None, aq, track_prefix="a", simulation_file="data/detections/penc-day-output.pickle")
-    ceiling_camera = Camera(None, cq, track_prefix="c", simulation_file="data/detections/ceil-day-output.pickle")
+    angled_camera = Camera(None, aq, track_prefix="a", simulation_file=args.aj)
+    ceiling_camera = Camera(None, cq, track_prefix="c", simulation_file=args.cj)
     angled_camera.start(); ceiling_camera.start();
 
-    TOTAL_PIGS = 17
+    ## Initialize Camera Manager
+    PEN_NAME = "B" if "B" in args.aj else "C"
+    TOTAL_PIGS = 1000#17 if PEN_NAME == "B" else 16
     cmq = multiproc.Queue()
-    camera_manager = CameraManager(angled_camera, ceiling_camera, cmq, total_pigs=TOTAL_PIGS, pen_name="C")
+    camera_manager = CameraManager(angled_camera, ceiling_camera, cmq, total_pigs=TOTAL_PIGS, pen_name=PEN_NAME, ceil_lag=args.cl)
     camera_manager.start()
 
     cmap = plt.get_cmap('tab20b')
@@ -239,19 +255,19 @@ if __name__ == '__main__':
 
     f = 3
     w, h = int(f*1280), int(f*360)
-    angled = cv2.VideoCapture("data/videos/penc-day.mp4")
-    ceil = cv2.VideoCapture("data/videos/ceiling-day.mp4")
+    angled_cap = cv2.VideoCapture(args.av)
+    ceiling_cap = cv2.VideoCapture(args.cv)
     out = cv2.VideoWriter('multi-tracking.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (w, h))
 
     ## Remove initial 30 frames to match offset
-    for i in range(30):
-        angled.read()
+    for i in range(args.cl):
+        angled_cap.read()
 
     while True:
         frame_id, global_position_dict = camera_manager.get_global_ids()
         print(frame_id, global_position_dict)
-        ret1, angled_frame = angled.read()
-        ret2, ceil_frame = ceil.read()
+        ret1, angled_frame = angled_cap.read()
+        ret2, ceil_frame = ceiling_cap.read()
 
         if frame_id == -1 or not ret1 or not ret2:
             break

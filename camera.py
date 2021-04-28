@@ -2,13 +2,14 @@ import sys
 sys.path.append('deepsort-tracking')
 
 import cv2
-from deep_sort.tracker import Tracker
-from deep_sort import nn_matching
+import json
+from collections import defaultdict
+# from deep_sort.tracker import Tracker
+# from deep_sort import nn_matching
 
-from tools import generate_detections as gdet
-from yolov4.annotate import Detector
+# from tools import generate_detections as gdet
+# from yolov4.annotate import Detector
 
-import pickle5 as pickle
 import multiprocessing as multiproc
 multiproc.set_start_method('fork')
 
@@ -58,8 +59,19 @@ class Camera(multiproc.context.Process):
         return self.queue.get()
 
     def simulate(self):
-        with open(self.simulation_file, "rb") as f:
-            tracks_dict = pickle.load(f)
+
+        with open(self.simulation_file) as f:
+            objects = json.load(f)["objects"]
+        
+        tracks_dict = defaultdict(dict)
+        for id_dict in objects:
+            for f in id_dict["frames"]:
+                x, y = f["bbox"]["x"], f["bbox"]["y"]
+                width, height = f["bbox"]["width"], f["bbox"]["height"]
+                xmin, xmax = x-(width/2), x+(width/2) 
+                ymin, ymax = y-(height/2), y+(height/2) 
+
+                tracks_dict[f["frameNumber"]][id_dict["id"]] = [xmin, ymin, xmax, ymax]
 
         for frame_id, tracks in tracks_dict.items():
             self.queue.put((frame_id, {"%s%d"%(self.track_prefix, t): bbox for t, bbox in tracks.items()}))
@@ -67,9 +79,14 @@ class Camera(multiproc.context.Process):
         self.queue.put((-1, {}))
 
 if __name__ == '__main__':
-    
+    import argparse
+
+    parser = argparse.ArgumentParser(description = "Simulate using JSON file")
+    parser.add_argument('--j', required=True, help="Json file which contains annotations")
+    args = parser.parse_args()
+
     q = multiproc.Queue()
-    c = Camera(None, q, "data/detections/ceil-day-output.pickle")
+    c = Camera(None, q, simulation_file=args.j)
 
     c.start()
 
