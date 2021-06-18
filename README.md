@@ -1,7 +1,7 @@
 # Multi Camera Pig Tracking
 Official Implementation of **Tracking Grow-Finish Pigs Across Large Pens Using Multiple Cameras**
 
-<img src="data/pigs.gif" width="1000"></img>
+<img src="data/multicam-tracking.gif" width="1000"></img>
 
 We have extracted the output of Deepsort and stored it in ``data/detections/``. To run our code: 
 
