@@ -1,0 +1,9 @@
+python3 manager.py --av data/multicam-dataset/0/0-Pen_B.mp4 --cv data/multicam-dataset/0/0-Ceiling_Cam.mp4 --cj data/multicam-dataset/0/0-Ceiling_Cam.json --aj data/multicam-dataset/0/0-Pen_B.json --cl 457
+
+python3 manager.py --av data/multicam-dataset/1/1-Pen_B.mp4 --aj data/multicam-dataset/1/1-Pen_B.json --cv data/multicam-dataset/1/1-Ceiling_Cam.mp4 --cj data/multicam-dataset/1/1-Ceiling_Cam.json --cl 475
+
+python3 manager.py --av data/multicam-dataset/12/12-Pen_C.mp4 --aj data/multicam-dataset/12/12-Pen_C.json --cv data/multicam-dataset/12/12-Ceiling_Cam.mp4 --cj data/multicam-dataset/12/12-Ceiling_Cam.json --cl 51
+
+python3 manager.py --av data/multicam-dataset/16/16-Pen_B.mp4 --aj data/multicam-dataset/16/16-Pen_B.json --cv data/multicam-dataset/16/16-Ceiling_Cam.mp4 --cj data/multicam-dataset/16/16-Ceiling_Cam.json --cl 435
+
+python3 manager.py --av data/multicam-dataset/17/17-Pen_B.mp4 --aj data/multicam-dataset/17/17-Pen_B.json --cv data/multicam-dataset/17/17-Ceiling_Cam.mp4 --cj data/multicam-dataset/17/17-Ceiling_Cam.json --cl 495

@@ -1,3 +1,8 @@
+"""
+Activity tracker for Pens B and C
+Uses the global IDs from the camera manager 
+"""
+
 import os
 import json
 import pickle
@@ -111,22 +116,22 @@ class Pen(multiproc.context.Process):
             frame_id, global_ids = self.camera_manager.get_global_ids()
             if frame_id == -1:
                 break
-            self.update_pigs(frame_id, global_ids)
-            activity_dict = self.detect_activities(frame_id)
+        #     self.update_pigs(frame_id, global_ids)
+        #     activity_dict = self.detect_activities(frame_id)
 
-            self.activity_tracker.update_activity(frame_id, activity_dict)
+        #     self.activity_tracker.update_activity(frame_id, activity_dict)
 
-            if self.vis_q is not None:
-                ## Augment Global IDs with activity detected
-                for pig_id, (angled_box, ceil_box) in global_ids.items():
-                    global_ids[pig_id] = (angled_box, ceil_box, self.get_activity(pig_id, activity_dict))
+        #     if self.vis_q is not None:
+        #         ## Augment Global IDs with activity detected
+        #         for pig_id, (angled_box, ceil_box) in global_ids.items():
+        #             global_ids[pig_id] = (angled_box, ceil_box, self.get_activity(pig_id, activity_dict))
 
-                self.vis_q.put((frame_id, global_ids, activity_dict))
+        #         self.vis_q.put((frame_id, global_ids, activity_dict))
 
-        if self.vis_q is not None:
-            self.vis_q.put((-1, None, None))
+        # if self.vis_q is not None:
+        #     self.vis_q.put((-1, None, None))
 
-        self.activity_tracker.export_tracker(self.pigs, frame_id)
+        # self.activity_tracker.export_tracker(self.pigs, frame_id)
 
     def update_pigs(self, frame_id, global_ids):
         global_ids_copy = deepcopy(global_ids)
@@ -180,7 +185,8 @@ class Pen(multiproc.context.Process):
         return activity_dict
 
     def draw_roi(self, frame, activity):
-        """Draw the Region of Interest on the current frame
+        """
+        Draw the Region of Interest on the current frame
         """
         c = (102, 3, 252)
         for i in range(len(self.activity_params[activity]['roi'])):
@@ -191,7 +197,7 @@ class Pen(multiproc.context.Process):
 if __name__ == '__main__':
     import cv2
     import matplotlib.pyplot as plt
-
+    
     PEN_NAME = "C"
     aq, cq = multiproc.Queue(), multiproc.Queue()
     angled_camera = Camera(None, aq, track_prefix="a", simulation_file=f"data/detections/pen{PEN_NAME.lower()}-day-output.pickle")

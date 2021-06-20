@@ -1,3 +1,7 @@
+"""
+Simulates detection and tracking of pigs for a single camera
+"""
+
 import sys
 sys.path.append('deepsort-tracking')
 

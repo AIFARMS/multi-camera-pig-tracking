@@ -1,14 +1,20 @@
+"""
+Main file used to generate Global IDs using multiple camera views
+"""
+
 from camera import Camera
 from shapely.geometry import Polygon, box
 import numpy as np
 import pickle
+import json
 import multiprocessing as multiproc
 # multiproc.set_start_method('fork') ## Context already set in camera.py
 
 from disjoint_set import DisjointSet
 from pigutils import annotate_frame
+from collections import defaultdict, Counter
 
-DEBUG = True
+DEBUG = False
 
 class CameraManager(multiproc.context.Process):
 
@@ -32,6 +38,7 @@ class CameraManager(multiproc.context.Process):
 
         self.queue = queue
         self.union_find = DisjointSet()
+        self.mapping_counter = Counter()
 
         self.total_pigs = total_pigs
         self.pigs_seen = 0
@@ -57,20 +64,24 @@ class CameraManager(multiproc.context.Process):
 
     def run(self):
         ceil_done, angled_done = False, False
-        while not ceil_done or not angled_done:
+        while not ceil_done and not angled_done:
 
             fid, tracks = self.ceil_camera.get_tracks()
-            ceil_done = ceil_done and fid == -1
+            ceil_done = ceil_done or fid == -1
             if not ceil_done:
                 self.local_buffer['ceiling'][fid+self.ceil_lag] = tracks
 
             fid, tracks = self.angled_camera.get_tracks()
-            angled_done = angled_done and fid == -1
+            angled_done = angled_done or fid == -1
             if not angled_done:
                 self.local_buffer['angled'][fid] = tracks
 
             self.match_tracks_from_buffer()
 
+        with open("mapping.json", "w") as f:
+            json.dump(dict(self.mapping_counter), f)
+        print(self.mapping_counter)
+        print("Mapping Written")
         self.queue.put((-1, None))
 
     def match_tracks_from_buffer(self):
@@ -81,7 +92,6 @@ class CameraManager(multiproc.context.Process):
         for fid in matching_fids:
             global_position_dict = self.match_tracks(self.ceiling_filter(self.local_buffer['ceiling'].pop(fid, None)), 
                                                     self.local_buffer['angled'].pop(fid, None))
-            print(fid, end=" ")
             self.queue.put((fid, global_position_dict))
             
     def match_tracks(self, ceil_tracks, angled_tracks):
@@ -108,8 +118,20 @@ class CameraManager(multiproc.context.Process):
             global_id = self.union_find.find(angled_id)
             global_position_dict[global_id] = (angled_tracks[angled_id], None)
 
+        ## Assign Pigs in the Ceil view a global ID in the end (Cropped version??)
+        for ceil_id in set(ceil_tracks.keys()) - set(ceil_to_angled.keys()):
+
+            if not ceil_id in self.union_find:
+                self.union_find.union(ceil_id, self.pigs_seen)
+                self.pigs_seen += 1
+
+            global_id = self.union_find.find(ceil_id)
+            global_position_dict[global_id] = (None, ceil_tracks[ceil_id])
+
         ## Assign Pigs tracked by Homography a Global ID
         for ceil_id, angled_id in ceil_to_angled.items():
+
+            self.mapping_counter[f"{ceil_id}-{angled_id}"] += 1
 
             if angled_id in self.union_find:
 
@@ -117,7 +139,7 @@ class CameraManager(multiproc.context.Process):
                     ## Both local IDs already exist and have a Global ID 
                     ## BUT, this can lead to ID merges. Two or more pigs can get assigned to the same ID
                     ## So let's assign a completely new global ID now (Can be improved)
-                    pass
+
                     # common_id = min(self.union_find.find(ceil_id), self.union_find.find(angled_id))
                     # self.union_find.union(ceil_id, common_id)
                     # self.union_find.union(angled_id, common_id)
@@ -125,11 +147,13 @@ class CameraManager(multiproc.context.Process):
                     if self.union_find.find(ceil_id) != self.union_find.find(angled_id):
 
                         ## TODO: Create custom reset function
-                        self.union_find.reset(ceil_id, self.pigs_seen)
-                        self.union_find.reset(angled_id, self.pigs_seen)
-
-                        self.pigs_seen += 1
-
+                        min_id, max_id = sorted((self.union_find.find(ceil_id), self.union_find.find(angled_id)))
+                        if min_id not in global_position_dict:
+                            self.union_find.reset(ceil_id, min_id)
+                            self.union_find.reset(angled_id, min_id)
+                        else:
+                            self.union_find.reset(ceil_id, max_id)
+                            self.union_find.reset(angled_id, max_id)
                 else:
                     ## Assign the Global ID of angled_id to ceil_id
                     self.union_find.union(ceil_id, self.union_find.find(angled_id))
@@ -148,15 +172,6 @@ class CameraManager(multiproc.context.Process):
             global_id = self.union_find.find(angled_id)
             global_position_dict[global_id] = (angled_tracks[angled_id], ceil_tracks[ceil_id])
 
-        ## Assign Pigs in the Ceil view a global ID in the end (Cropped version??)
-        for ceil_id in set(ceil_tracks.keys()) - set(ceil_to_angled.keys()):
-
-            if not ceil_id in self.union_find:
-                self.union_find.union(ceil_id, self.pigs_seen)
-                self.pigs_seen += 1
-
-            global_id = self.union_find.find(ceil_id)
-            global_position_dict[global_id] = (None, ceil_tracks[ceil_id])
 
         if DEBUG:
             print(list(self.union_find.itersets()))
@@ -281,6 +296,7 @@ if __name__ == '__main__':
 
     f = 3
     w, h = int(f*1280), int(f*360)
+    print(w,h)
     angled_cap = cv2.VideoCapture(args.av)
     ceiling_cap = cv2.VideoCapture(args.cv)
     out = cv2.VideoWriter('multi-tracking.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (w, h))
@@ -288,6 +304,38 @@ if __name__ == '__main__':
     ## Remove initial 30 frames to match offset
     for i in range(args.cl):
         angled_cap.read()
+
+    angled_output_dict = {
+        "videoFileName": args.av,
+        "fullVideoFilePath": args.av,
+        "stepSize": 0.1,
+        "config": {
+            "stepSize": 0.1,
+            "playbackRate": 0.4,
+            "imageMimeType": "image/jpeg",
+            "imageExtension": ".jpg",
+            "framesZipFilename": "extracted-frames.zip",
+            "consoleLog": "0"
+        },
+        "objects":[]
+    }
+
+    ceiling_output_dict = {
+        "videoFileName": args.cv,
+        "fullVideoFilePath": args.cv,
+        "stepSize": 0.1,
+        "config": {
+            "stepSize": 0.1,
+            "playbackRate": 0.4,
+            "imageMimeType": "image/jpeg",
+            "imageExtension": ".jpg",
+            "framesZipFilename": "extracted-frames.zip",
+            "consoleLog": "0"
+        },
+        "objects":[]
+    }
+
+    angled_id_frames, ceiling_id_frames = defaultdict(list), defaultdict(list)
 
     while True:
         frame_id, global_position_dict = camera_manager.get_global_ids()
@@ -303,16 +351,70 @@ if __name__ == '__main__':
 
             if angled_box is not None:
                 annotate_frame(angled_frame, pig_id, angled_box, colors, activity=None)
-                
+                xmin, ymin, xmax, ymax = angled_box
+                x = int((xmin+xmax)/2)
+                y = int((ymin+ymax)/2)
+                width, height = int(xmax-xmin), int(ymax-ymin)
+
+                angled_id_frames[pig_id].append({
+                    "frameNumber": frame_id,
+                    "bbox": {
+                        "x": x,
+                        "y": y,
+                        "width": width,
+                        "height": height
+                    },
+                    "isGroundTruth": "1",
+                    "visible": "1",
+                    "behaviour": "other"
+                })
+
             if ceil_box is not None:
                 annotate_frame(ceil_frame, pig_id, ceil_box, colors, activity=None)
+                xmin, ymin, xmax, ymax = ceil_box
+                x = int((xmin+xmax)/2)
+                y = int((ymin+ymax)/2)
+                width, height = int(xmax-xmin), int(ymax-ymin)
 
-        cv2.putText(angled_frame, "Frame ID: %d"%frame_id, (20, 100), 0, 3, (0,0,255), 10)
+                ceiling_id_frames[pig_id].append({
+                    "frameNumber": frame_id-args.cl,
+                    "bbox": {
+                        "x": x,
+                        "y": y,
+                        "width": width,
+                        "height": height
+                    },
+                    "isGroundTruth": "1",
+                    "visible": "1",
+                    "behaviour": "other"
+                })
+
+        # cv2.putText(angled_frame, "Frame ID: %d"%frame_id, (20, 100), 0, 3, (0,0,255), 10)
         stacked_frames = cv2.resize(np.hstack((ceil_frame, angled_frame)), (w, h))
         cv2.imshow("Multi Camera Tracking", stacked_frames)
         out.write(stacked_frames)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+    for pig_id, frames in angled_id_frames.items():
+        angled_output_dict["objects"].append({
+            "frames": frames,
+            "id": pig_id
+        })
+
+    for pig_id, frames in ceiling_id_frames.items():
+        ceiling_output_dict["objects"].append({
+            "frames": frames,
+            "id": pig_id
+        })
+
+    with open("angled.json", "w") as f:
+        json.dump(angled_output_dict, f)
+
+    with open("ceiling.json", "w") as f:
+        json.dump(ceiling_output_dict, f)
+
+    print("Done")
 
     angled_camera.join()
     ceiling_camera.join()
