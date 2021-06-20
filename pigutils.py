@@ -40,9 +40,9 @@ def annotate_frame(frame, pig_id, box, colors, activity):
 
     color = [i * 255 for i in color]
     if activity is None:
-        cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 2)
+        cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 5)
     else:
         cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), ACTIVITY_COLOR[activity], 5)
 
-    cv2.rectangle(frame, (int(xmin), int(ymin-30)), (int(xmin)+(3+len(str(pig_id)))*17, int(ymin)), color, -1)
-    cv2.putText(frame, "Pig-" + str(pig_id),(int(xmin), int(ymin-10)),0, 0.75, (255,255,255),2)
+    cv2.rectangle(frame, (int(xmin), int(ymin-60)), (int(xmin)+(3+len(str(pig_id)))*50, int(ymin)), color, -1)
+    cv2.putText(frame, "Pig-" + str(pig_id),(int(xmin), int(ymin-10)),0, 2, (255,255,255),5)
