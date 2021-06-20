@@ -1,8 +1,15 @@
+"""
+Main file to run DeepSORT local tracking
+"""
+
 import os
+import sys
 import cv2
 import json
 import argparse
 from collections import defaultdict
+
+sys.path.append('yolov4')
 
 from yolov4.annotate import Detector
 from deep_sort.tracker import Tracker
@@ -18,9 +25,6 @@ import numpy as np
 from deep_sort import preprocessing
 from tqdm import tqdm
 
-"""
-Main file to run DeepSORT implementation with given tracker
-"""
 ## Suppress Deprecated Warnings
 import sys
 if not sys.warnoptions:

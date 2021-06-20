@@ -1,5 +1,5 @@
 classes = 1
-train = ./yolov4/data/train.txt
-valid = ./yolov4/data/test.txt
-names = ./yolov4/data/obj.names
-backup = ./yolov4/backup/
+train = data/day-train.txt
+valid = data/day-test.txt
+names = data/obj.names
+backup = backup/
