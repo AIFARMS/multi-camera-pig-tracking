@@ -19,7 +19,7 @@ The videos were acquired at the Imported Swine Research Lab (ISRL) at UIUC. The 
 
 
 ## Running the code
-Download the dataset from [this](https://drive.google.com/drive/folders/1E2wW2aRENgy_TqlzfICn58ahbTHVIaK6?usp=sharing) link and place the multi-camera dataset in ``data/`` folder and rename the folder to ``multicam-dataset``. Note that we have already trained the model and extracted the output of DeepSORT into JSON files. 
+Download the dataset from [this](https://drive.google.com/drive/folders/1E2wW2aRENgy_TqlzfICn58ahbTHVIaK6?usp=sharing) link and place ``multicam-dataset`` folder in ``data/``. Note that we have already trained the model and extracted the output of DeepSORT into JSON files. **You can find the pretrained checkpoint [here](https://drive.google.com/file/d/1SCDtxM2WXQBMx1pqeoOg5JpYK3GvfDvx/view?usp=sharing)**
 
 1. Run ``export DARKNET_PATH=./deepsort-tracking/yolov4/`` in terminal.
 2. Run any one of the commands from [commands.txt](commands.txt), for instance: python3 manager.py --av data/multicam-dataset/0/0-Pen_B.mp4 --cv data/multicam-dataset/0/0-Ceiling_Cam.mp4 --cj data/multicam-dataset/0/0-Ceiling_Cam.json --aj data/multicam-dataset/0/0-Pen_B.json --cl 457
