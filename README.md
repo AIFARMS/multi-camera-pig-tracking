@@ -1,6 +1,8 @@
 # Multi Camera Pig Tracking
 Official Implementation of **Tracking Grow-Finish Pigs Across Large Pens Using Multiple Cameras**
 
+[CVPR2021 CV4Animals Workshop Poster](https://drive.google.com/file/d/1ecdUNkKhlcNxA0ZbvaZBc8qJdrLHAmUV/view)
+
 <img src="data/multicam-tracking.gif" width="1000"></img>
 
 ## Dataset
