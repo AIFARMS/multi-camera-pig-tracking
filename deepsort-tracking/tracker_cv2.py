@@ -37,10 +37,9 @@ mask_map = {
     "Pen_C"         : "penc"    
 }
 
-def annotate_video(video_path):
+def annotate_video(video_path, view):
     video_prefix = video_path.split('.')[0]
     video_name = video_prefix.split('/')[-1]
-    view = video_name.split('-')[-1]
     
     if os.path.exists(f"{video_prefix}.json"):
         return  
@@ -82,8 +81,10 @@ def annotate_video(video_path):
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     total_frames = 0
     pbar = tqdm(total=length, file=sys.stdout)
-
-    mask_filter = cv2.imread(f"./yolov4/masks/{mask_map[view]}-maskfilter.png")
+    
+    mask_path = f"./yolov4/masks/{mask_map[view]}-maskfilter.png"
+    print(f"Loading mask {mask_path}")
+    mask_filter = cv2.imread(mask_path)
     if mask_filter.shape[:2] != (h, w):
     	mask_filter = cv2.resize(mask_filter, (w, h))
     
@@ -129,7 +130,6 @@ def annotate_video(video_path):
             })
 
         total_frames += 1
-        #if total_frames == 100: break
     #out.release()
     cap.release()
 
@@ -147,6 +147,7 @@ def annotate_video(video_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = "Detect, Track and Count")
     parser.add_argument('--stream_source', '-s', required=True, help="Source video stream. Default stream is the webcam")
+    parser.add_argument('--view', '-v', required=True, help="Specify Camera view")
     args = parser.parse_args()
 
-    annotate_video(args.stream_source)
+    annotate_video(args.stream_source, args.view)
